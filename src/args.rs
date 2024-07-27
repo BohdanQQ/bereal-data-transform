@@ -10,10 +10,15 @@ pub enum ImageFormat {
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum Grouping {
+    /// only exported media, no subdirectories, total depth: 1
     None,
+    /// subdirectories representing years, total depth: 2
     Year,
+    /// subdirectories representing each year-month pair in a hierarchy "OUTPUT/year/month", total depth: 3
     Month,
+    /// subdirectories representing each year-month-day trilpet in a hierarchy "OUTPUT/year/month/day", total depth: 4
     Day,
+    /// subdirectories representing each calendar date identified by year, month and day, total depth: 2
     DayFlat,
 }
 
@@ -53,7 +58,7 @@ pub enum Commands {
         #[clap(value_enum, default_value_t=ImageFormat::Jpeg)]
         image_format: ImageFormat,
 
-        /// Groups images and videos
+        /// Groups images and videos, defines the filesystem structure inside the OUTPUT folder
         #[arg(short, long)]
         #[clap(value_enum, default_value_t=Grouping::None)]
         group: Grouping,
