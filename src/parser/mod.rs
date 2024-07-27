@@ -1,4 +1,4 @@
-mod exporter_v0;
+mod parser_v0;
 
 use std::path::{Path, PathBuf};
 
@@ -7,7 +7,7 @@ use chrono_tz::Tz;
 pub const EXPORTER_COUNT: u64 = 1;
 
 #[derive(Debug, Clone)]
-pub struct BerealRecord {
+pub struct BerealMomentRecord {
     pub front_camera_path: PathBuf,
     pub back_camera_path: PathBuf,
 
@@ -28,12 +28,12 @@ pub enum BerealSongData {
 
 #[derive(Debug, Clone)]
 pub enum BerealBTSData {
-    Video { path: String },
+    Video { path: PathBuf },
 }
 
-pub trait Exporter {
+pub trait BerealExportParser {
     fn get_timezone(&self) -> Result<Tz, String>;
-    fn parse_image_data(&self) -> Result<Vec<BerealRecord>, String>;
+    fn parse_image_data(&self) -> Result<Vec<BerealMomentRecord>, String>;
     fn check_file_structure(&self) -> Result<(), String>;
 }
 
@@ -62,7 +62,7 @@ where
     Ok(result)
 }
 
-pub fn get_exporter(version: u64, input_path: &Path) -> Box<dyn Exporter> {
+pub fn get_parser(version: u64, input_path: &Path) -> Box<dyn BerealExportParser> {
     if version >= EXPORTER_COUNT {
         panic!(
             "Export version invalid! Expecting number between 0 and {}",
@@ -71,7 +71,7 @@ pub fn get_exporter(version: u64, input_path: &Path) -> Box<dyn Exporter> {
     }
 
     match version {
-        0 => Box::new(exporter_v0::ExporterV0::new(PathBuf::from(input_path))),
+        0 => Box::new(parser_v0::ParserV0::new(PathBuf::from(input_path))),
         _ => panic!("Sanity check failed"),
     }
 }

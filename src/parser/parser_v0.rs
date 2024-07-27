@@ -10,13 +10,13 @@ use std::{
     path::{absolute, PathBuf},
 };
 
-use super::{BerealBTSData, BerealRecord, BerealSongData, Exporter};
+use super::{BerealBTSData, BerealExportParser, BerealMomentRecord, BerealSongData};
 
-pub struct ExporterV0 {
+pub struct ParserV0 {
     input_path: PathBuf,
 }
 
-impl ExporterV0 {
+impl ParserV0 {
     const MEMORIES_FILE: &'static str = "memories.json";
     const USER_FILE: &'static str = "user.json";
 
@@ -24,14 +24,14 @@ impl ExporterV0 {
         self.input_path.join(p)
     }
 
-    pub fn new(input_path: PathBuf) -> ExporterV0 {
-        ExporterV0 { input_path }
+    pub fn new(input_path: PathBuf) -> ParserV0 {
+        ParserV0 { input_path }
     }
 }
 
-impl Exporter for ExporterV0 {
+impl BerealExportParser for ParserV0 {
     fn get_timezone(&self) -> Result<Tz, String> {
-        let read_res = super::read_file_into_string(self.relative_path(ExporterV0::USER_FILE))?;
+        let read_res = super::read_file_into_string(self.relative_path(ParserV0::USER_FILE))?;
 
         let u_json = serde_json::from_str::<UserJson>(&read_res)
             .map_err(|e| format!("Error parsing user.json file: {}", e))?;
@@ -50,9 +50,9 @@ impl Exporter for ExporterV0 {
     }
 
     fn check_file_structure(&self) -> Result<(), String> {
-        let required_files = vec![self.relative_path(ExporterV0::MEMORIES_FILE)];
+        let required_files = vec![self.relative_path(ParserV0::MEMORIES_FILE)];
 
-        let warn_if_missing_files = vec![self.relative_path(ExporterV0::USER_FILE)];
+        let warn_if_missing_files = vec![self.relative_path(ParserV0::USER_FILE)];
 
         for required in required_files {
             if !required.exists() {
@@ -79,12 +79,12 @@ impl Exporter for ExporterV0 {
 
         Ok(())
     }
-    fn parse_image_data(&self) -> Result<Vec<BerealRecord>, String> {
-        let read_res = super::read_file_into_string(self.relative_path(ExporterV0::MEMORIES_FILE))?;
+    fn parse_image_data(&self) -> Result<Vec<BerealMomentRecord>, String> {
+        let read_res = super::read_file_into_string(self.relative_path(ParserV0::MEMORIES_FILE))?;
         let parsed: Vec<MemoryItemJson> = serde_json::from_str(&read_res)
             .map_err(|e| format!("Failed to parse memories: {}", e))?;
 
-        let pre_result: Vec<Result<BerealRecord, String>> =
+        let pre_result: Vec<Result<BerealMomentRecord, String>> =
             parsed.iter().map(|x| x.clone().try_into()).collect();
         let mut result = vec![];
         let mut errors = false;
@@ -208,15 +208,15 @@ fn strip_bereal_id_from_path(path: &str) -> Option<String> {
         if !regex.is_match(path) {
             return None;
         }
-        return Some(regex.replace(path, StartEndEraseRest).to_string());
+        return Some("./".to_string() + regex.replace(path, StartEndEraseRest).as_ref());
     }
     None
 }
 
-impl TryInto<BerealRecord> for MemoryItemJson {
+impl TryInto<BerealMomentRecord> for MemoryItemJson {
     type Error = String;
 
-    fn try_into(self) -> Result<BerealRecord, Self::Error> {
+    fn try_into(self) -> Result<BerealMomentRecord, Self::Error> {
         // strips bereal id path, handles errors
         let transformer = |p: MediaInfo| {
             strip_bereal_id_from_path(&p.path).map_or_else(
@@ -244,7 +244,7 @@ impl TryInto<BerealRecord> for MemoryItemJson {
             Some(result.unwrap())
         });
 
-        Ok(BerealRecord {
+        Ok(BerealMomentRecord {
             back_camera_path: back_path,
             front_camera_path: front_path,
             caption: self.caption.unwrap_or("".to_string()),
@@ -258,7 +258,9 @@ impl TryInto<BerealRecord> for MemoryItemJson {
                         println!("Error pasing BTS path");
                         None
                     }
-                    Some(p) => Some(BerealBTSData::Video { path: p }),
+                    Some(p) => Some(BerealBTSData::Video {
+                        path: PathBuf::from("./".to_string() + &p),
+                    }),
                 },
             }),
         })

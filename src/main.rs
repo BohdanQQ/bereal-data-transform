@@ -1,13 +1,17 @@
 mod args;
-pub mod exporter;
+mod export;
 mod filter;
+mod group;
+pub mod parser;
 
 use std::path::PathBuf;
 
 use args::Args;
 use clap::Parser;
-use exporter::get_exporter;
-use filter::filter_photos;
+use export::*;
+use filter::*;
+use group::*;
+use parser::*;
 
 fn main() {
     let args = Args::parse();
@@ -22,20 +26,29 @@ fn process(args: Args) -> Result<(), String> {
             caption,
             interval,
         } => {
-            let exporter = get_exporter(args.export_version, &PathBuf::from(args.input));
+            let input_path = PathBuf::from(args.input);
+            let exporter = get_parser(args.export_version, &input_path);
             exporter.check_file_structure()?;
             // TODO: use this either in the image pasing phase or in the filtering phase
-            // (photo timestamps are in UTC)
+            // (timestamps are in UTC)
             let tx = exporter.get_timezone();
-            
 
             let data = exporter.parse_image_data()?;
 
-            let data = filter_photos(data, caption, interval)?;
-            
-            // todo export data to the output folder
+            let mut data = filter_moments(data, caption, interval)?;
 
-            for d in data {
+            let grouped_moments = group_moments(&mut data, group)?;
+
+            export_moments(
+                &grouped_moments,
+                input_path,
+                PathBuf::from(&args.output),
+                image_format,
+            );
+
+            // TODO: inject metadata to the targets
+
+            for d in grouped_moments {
                 println!("{:?}", d);
             }
             todo!()

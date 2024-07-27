@@ -1,4 +1,4 @@
-use crate::exporter::EXPORTER_COUNT;
+use crate::parser::EXPORTER_COUNT;
 use chrono::{NaiveDate, NaiveDateTime, ParseResult};
 use clap::{Parser, Subcommand, ValueEnum};
 
@@ -16,6 +16,7 @@ pub enum Grouping {
     Year,
     Month,
     Day,
+    DayFlat,
 }
 
 #[derive(Parser, Debug)]

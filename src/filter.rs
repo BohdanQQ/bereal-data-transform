@@ -1,11 +1,11 @@
-use crate::{args::TimeInterval, exporter::BerealRecord};
+use crate::{args::TimeInterval, parser::BerealMomentRecord};
 
-pub fn filter_photos(
-    photos: Vec<BerealRecord>,
+pub fn filter_moments(
+    moments: Vec<BerealMomentRecord>,
     caption_regex: Option<String>,
     intervals_allowed: Option<Vec<TimeInterval>>,
-) -> Result<Vec<BerealRecord>, String> {
-    let mut result: Vec<BerealRecord> = vec![];
+) -> Result<Vec<BerealMomentRecord>, String> {
+    let mut result: Vec<BerealMomentRecord> = vec![];
     let mut regex = None;
     if let Some(rexp) = caption_regex {
         let re = regex::Regex::new(&rexp.to_lowercase());
@@ -18,10 +18,10 @@ pub fn filter_photos(
 
     let filter_present = regex.is_some() || intervals_allowed.is_some();
     if !filter_present {
-        return Ok(photos);
+        return Ok(moments);
     }
 
-    for photo in photos {
+    for photo in moments {
         if let Some(regex) = regex.as_ref() {
             if !regex.is_match(&photo.caption.to_lowercase()) {
                 continue;
