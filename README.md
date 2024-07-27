@@ -14,6 +14,7 @@ as well as posts' caption text-based filtering (regex).
 ## Run
 
 Only "working" subcommands are listed. Again, the program now panics at the end of execution + is heavily WIP.
+As input folder, specify your unzipped BeReal dump.
 
 ### Memories export
 
