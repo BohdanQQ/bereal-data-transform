@@ -34,24 +34,27 @@ fn process(args: Args) -> Result<(), String> {
             let tx = exporter.get_timezone();
 
             let data = exporter.parse_image_data()?;
+            println!("Total parsed moments: {}", data.len());
 
             let mut data = filter_moments(data, caption, interval)?;
+            let filtered = data.len();
+            println!("Filtered moments: {}", filtered);
 
             let grouped_moments = group_moments(&mut data, group)?;
+            if grouped_moments.len() != filtered {
+                print!("Warning: grouping phase omitted data!");
+            }
 
-            export_moments(
+            println!("Exporting");
+            let exported = export_moments(
                 &grouped_moments,
                 input_path,
                 PathBuf::from(&args.output),
                 image_format,
             );
+            println!("Exported {} moments", exported);
 
-            // TODO: inject metadata to the targets
-
-            for d in grouped_moments {
-                println!("{:?}", d);
-            }
-            todo!()
+            Ok(())
         }
         args::Commands::RealMojis {} => todo!("unsupported realmojis"),
     }

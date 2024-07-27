@@ -1,10 +1,14 @@
 use crate::{args::ImageFormat, group, BerealBTSData};
 use image::ImageReader;
 use std::{
+    cmp::max,
     fmt::Display,
     fs::{self, canonicalize, File},
-    io::{self, BufWriter},
+    io::{self, BufWriter, Write},
     path::{absolute, Path, PathBuf},
+    sync::{atomic::AtomicUsize, Arc},
+    thread,
+    time::Duration,
 };
 
 pub fn export_moments(
@@ -12,7 +16,9 @@ pub fn export_moments(
     input_folder: PathBuf,
     output_folder: PathBuf,
     format: ImageFormat,
-) {
+) -> usize {
+    let total = Arc::new(AtomicUsize::new(0));
+    let done = Arc::new(AtomicUsize::new(0));
     let image_extension = match format {
         ImageFormat::Jpeg => "jpeg",
         ImageFormat::Png => "png",
@@ -22,7 +28,7 @@ pub fn export_moments(
         ImageFormat::Png => image::ImageFormat::Png,
     };
 
-    // TODO: Paralelize
+    println!("Spawning filesystem structure");
     for moment in moment_output_spec {
         let folder = output_folder.join(moment.folder.clone());
         if !folder.exists() {
@@ -31,32 +37,83 @@ pub fn export_moments(
                 continue;
             }
         }
-
-        let front_name = moment.file_name_prefix.clone() + "_camera_front." + image_extension;
-        let res_front = convert_to(
-            &input_folder.join(&moment.moment.front_camera_path),
-            &folder.join(front_name),
-            lib_format,
-        );
-        print_if_err(&res_front);
-
-        let back_name = moment.file_name_prefix.clone() + "_camera_ back." + image_extension;
-        let res_back = convert_to(
-            &input_folder.join(&moment.moment.back_camera_path),
-            &folder.join(back_name),
-            lib_format,
-        );
-        print_if_err(&res_back);
-
-        if let Some(BerealBTSData::Video { path }) = &moment.moment.behind_the_scenes {
-            let bts_name = moment.file_name_prefix.clone() + "_BTS";
-            let mb_ext = Path::new(path).extension().and_then(|s| s.to_str());
-            if let Some(ext) = mb_ext {
-                let res_bts = copy_to(&input_folder.join(path), &folder.join(bts_name + "." + ext));
-                print_if_err(&res_bts);
-            }
-        }
     }
+
+    let cpu_count = max(1, num_cpus::get());
+    let chunk_size = (moment_output_spec.len() + cpu_count - 1) / cpu_count;
+    let thread_count = moment_output_spec.chunks(chunk_size).len();
+    println!(
+        "Converting... 1-T Workload: {}, Thread Count: {}",
+        chunk_size, thread_count
+    );
+    thread::scope(|s| {
+        for chunk in moment_output_spec.chunks(chunk_size) {
+            let output_folder = output_folder.clone();
+            let input_folder = input_folder.clone();
+            let total = Arc::clone(&total);
+            let done = Arc::clone(&done);
+            println!("spawn");
+            s.spawn(move || {
+                for moment in chunk {
+                    let folder = output_folder.join(moment.folder.clone());
+                    if !folder.exists() {
+                        println!("Directory not found {}\nSkipping...", folder.display());
+                        continue;
+                    }
+
+                    let front_name =
+                        moment.file_name_prefix.clone() + "_camera_front." + image_extension;
+                    let res_front = convert_to(
+                        &input_folder.join(&moment.moment.front_camera_path),
+                        &folder.join(front_name),
+                        lib_format,
+                    );
+                    print_if_err(&res_front);
+
+                    let back_name =
+                        moment.file_name_prefix.clone() + "_camera_ back." + image_extension;
+                    let res_back = convert_to(
+                        &input_folder.join(&moment.moment.back_camera_path),
+                        &folder.join(back_name),
+                        lib_format,
+                    );
+                    print_if_err(&res_back);
+
+                    if let Some(BerealBTSData::Video { path }) = &moment.moment.behind_the_scenes {
+                        let bts_name = moment.file_name_prefix.clone() + "_BTS";
+                        let mb_ext = Path::new(path).extension().and_then(|s| s.to_str());
+                        if let Some(ext) = mb_ext {
+                            let res_bts = copy_to(
+                                &input_folder.join(path),
+                                &folder.join(bts_name + "." + ext),
+                            );
+                            print_if_err(&res_bts);
+                        }
+                    }
+                    total.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                }
+                done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            });
+        }
+
+        let total = Arc::clone(&total);
+        let done = Arc::clone(&done);
+        s.spawn(move || {
+            while done.load(std::sync::atomic::Ordering::SeqCst) != thread_count {
+                print!(
+                    "\rDone: {}/{} ({} threads done)",
+                    total.load(std::sync::atomic::Ordering::SeqCst),
+                    moment_output_spec.len(),
+                    done.load(std::sync::atomic::Ordering::SeqCst)
+                );
+                let _ = io::stdout().flush();
+                thread::sleep(Duration::from_millis(500));
+            }
+            print!("\r\n");
+        });
+    });
+
+    total.load(std::sync::atomic::Ordering::SeqCst)
 }
 
 fn convert_to(

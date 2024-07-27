@@ -53,7 +53,7 @@ pub fn group_moments(
         // re-evaluate the group
 
         // the way grouping works now is by appending a folder name after each group_* pass
-        // in the Grouping::Day scnario, we first append year folder, then month folder 
+        // in the Grouping::Day scnario, we first append year folder, then month folder
         // (creating month subfolders in year folders) and then day folders
         Grouping::Year => {
             group_year(&mut result);
