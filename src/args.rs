@@ -2,16 +2,14 @@ use crate::parser::EXPORTER_COUNT;
 use chrono::{NaiveDate, NaiveDateTime, ParseResult};
 use clap::{Parser, Subcommand, ValueEnum};
 
-#[derive(ValueEnum, Clone, Default, Debug)]
+#[derive(ValueEnum, Clone, Debug)]
 pub enum ImageFormat {
-    #[default]
     Jpeg,
     Png,
 }
 
-#[derive(ValueEnum, Clone, Default, Debug)]
+#[derive(ValueEnum, Clone, Debug)]
 pub enum Grouping {
-    #[default]
     None,
     Year,
     Month,
@@ -52,10 +50,12 @@ pub enum Commands {
     Memories {
         /// Converts image to the specified format
         #[arg(short, long)]
+        #[clap(value_enum, default_value_t=ImageFormat::Jpeg)]
         image_format: ImageFormat,
 
         /// Groups images and videos
         #[arg(short, long)]
+        #[clap(value_enum, default_value_t=Grouping::None)]
         group: Grouping,
 
         /// Caption regular expression filter
