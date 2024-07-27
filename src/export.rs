@@ -16,6 +16,7 @@ pub fn export_moments(
     input_folder: PathBuf,
     output_folder: PathBuf,
     format: ImageFormat,
+    verbose: bool,
 ) -> usize {
     let total = Arc::new(AtomicUsize::new(0));
     let done = Arc::new(AtomicUsize::new(0));
@@ -27,8 +28,9 @@ pub fn export_moments(
         ImageFormat::Jpeg => image::ImageFormat::Jpeg,
         ImageFormat::Png => image::ImageFormat::Png,
     };
-
-    println!("Spawning filesystem structure");
+    if verbose {
+        println!("Spawning filesystem structure");
+    }
     for moment in moment_output_spec {
         let folder = output_folder.join(moment.folder.clone());
         if !folder.exists() {
@@ -42,17 +44,18 @@ pub fn export_moments(
     let cpu_count = max(1, num_cpus::get());
     let chunk_size = (moment_output_spec.len() + cpu_count - 1) / cpu_count;
     let thread_count = moment_output_spec.chunks(chunk_size).len();
-    println!(
-        "Converting... 1-T Workload: {}, Thread Count: {}",
-        chunk_size, thread_count
-    );
+    if verbose {
+        println!(
+            "Converting... 1-T Workload: {}, Thread Count: {}",
+            chunk_size, thread_count
+        );
+    }
     thread::scope(|s| {
         for chunk in moment_output_spec.chunks(chunk_size) {
             let output_folder = output_folder.clone();
             let input_folder = input_folder.clone();
             let total = Arc::clone(&total);
             let done = Arc::clone(&done);
-            println!("spawn");
             s.spawn(move || {
                 for moment in chunk {
                     let folder = output_folder.join(moment.folder.clone());
@@ -100,16 +103,25 @@ pub fn export_moments(
         let done = Arc::clone(&done);
         s.spawn(move || {
             while done.load(std::sync::atomic::Ordering::SeqCst) != thread_count {
-                print!(
-                    "\rDone: {}/{} ({} threads done)",
+                if verbose {
+                    print!(
+                        "\rProgress: {}/{} ({} threads done)",
+                        total.load(std::sync::atomic::Ordering::SeqCst),
+                        moment_output_spec.len(),
+                        done.load(std::sync::atomic::Ordering::SeqCst)
+                    );
+                }
+                let _ = io::stdout().flush();
+                thread::sleep(Duration::from_millis(500));
+            }
+            if verbose {
+                println!(
+                    "\rProgress: {}/{} ({} threads done)",
                     total.load(std::sync::atomic::Ordering::SeqCst),
                     moment_output_spec.len(),
                     done.load(std::sync::atomic::Ordering::SeqCst)
                 );
-                let _ = io::stdout().flush();
-                thread::sleep(Duration::from_millis(500));
             }
-            print!("\r\n");
         });
     });
 

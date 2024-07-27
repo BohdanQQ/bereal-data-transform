@@ -34,25 +34,34 @@ fn process(args: Args) -> Result<(), String> {
             let tx = exporter.get_timezone();
 
             let data = exporter.parse_image_data()?;
-            println!("Total parsed moments: {}", data.len());
+            if args.verbose {
+                println!("Total parsed moments: {}", data.len());
+            }
 
             let mut data = filter_moments(data, caption, interval)?;
             let filtered = data.len();
-            println!("Filtered moments: {}", filtered);
+            if args.verbose {
+                println!("Filtered moments: {}", filtered);
+            }
 
             let grouped_moments = group_moments(&mut data, group)?;
             if grouped_moments.len() != filtered {
                 print!("Warning: grouping phase omitted data!");
             }
+            if args.verbose {
+                println!("Exporting");
+            }
 
-            println!("Exporting");
             let exported = export_moments(
                 &grouped_moments,
                 input_path,
                 PathBuf::from(&args.output),
                 image_format,
+                args.verbose,
             );
-            println!("Exported {} moments", exported);
+            if args.verbose {
+                println!("Exported {} moments", exported);
+            }
 
             Ok(())
         }
