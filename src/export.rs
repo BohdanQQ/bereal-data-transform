@@ -86,7 +86,7 @@ pub fn export_moments(
                         let bts_name = moment.file_name_prefix.clone() + "_BTS";
                         let mb_ext = Path::new(path).extension().and_then(|s| s.to_str());
                         if let Some(ext) = mb_ext {
-                            let res_bts = copy_to(
+                            let res_bts = fs::copy(
                                 &input_folder.join(path),
                                 &folder.join(bts_name + "." + ext),
                             );
@@ -139,11 +139,6 @@ fn convert_to(
         .with_guessed_format()?
         .decode()?;
     img.write_to(&mut target, format)
-}
-
-fn copy_to(from: &PathBuf, to: &PathBuf) -> Result<(), io::Error> {
-    fs::copy(from, to)?;
-    Ok(())
 }
 
 fn print_if_err<R, E: Display>(res: &Result<R, E>) {
