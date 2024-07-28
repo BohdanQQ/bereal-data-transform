@@ -16,13 +16,24 @@ as well as posts' caption text-based filtering (regex).
 Only "working" subcommands are listed.
 As input folder, specify your unzipped BeReal dump.
 
-### Memories export
-
-**Disclaimer**: this command runs parallel conversions of images, it **will** eat up all your CPU cores' performance 
+**Disclaimer**: some commands run parallel conversions of images, they **will** eat up all your CPU cores' performance 
 for a while!
+
+### Memories export
 
     cargo r -- memories --help
 
 Example:
 
-    cargo r -- --input ./my/input/data  --output ./out memories --image-format jpeg --group day-flat
+    cargo r -- --input ./my/input/data  --output ./out-mem memories --image-format jpeg --group day-flat
+
+### Realmojis export
+
+    cargo r -- realmojis --help
+
+Example:
+
+    cargo r -- --input ./my/input/data  --output ./out-moji realmojis --group emoji
+
+Check out subcommands' respective `--help` messages for more information.
+
