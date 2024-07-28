@@ -85,21 +85,30 @@ where
                                 original_image_path,
                                 output_format,
                             } => {
-                                let image_extension = match output_format {
-                                    ImageFormat::Jpeg => "jpeg",
-                                    ImageFormat::Png => "png",
+                                let (image_extension, lib_format) = match output_format {
+                                    ImageFormat::Jpeg => ("jpeg".to_owned(), Some(image::ImageFormat::Jpeg)),
+                                    ImageFormat::Png => ("png".to_owned(), Some(image::ImageFormat::Png)),
+                                    ImageFormat::None => (original_image_path.extension()
+                                          .map(|x| x.to_string_lossy().to_string())
+                                          .unwrap_or("unknown".to_owned()) , 
+                                          None)
                                 };
 
-                                let lib_format = match output_format {
-                                    ImageFormat::Jpeg => image::ImageFormat::Jpeg,
-                                    ImageFormat::Png => image::ImageFormat::Png,
-                                };
-                                let res_front = convert_to(
-                                    &original_image_path,
-                                    &output_folder.join(output_file_name + "." + image_extension),
-                                    lib_format,
-                                );
-                                print_if_err(&res_front);
+                                if let Some(lib_format) = lib_format {
+                                  let res_front = convert_to(
+                                      &original_image_path,
+                                      &output_folder.join(output_file_name + "." + &image_extension),
+                                      lib_format,
+                                  );
+                                  print_if_err(&res_front);
+                                } else {
+                                    let res_bts = fs::copy(
+                                      &original_image_path,
+                                      output_folder.join(output_file_name + "." + &image_extension),
+                                  );
+                                  print_if_err(&res_bts);
+                                }
+
                             }
                             ExportJobSpec::Copy {
                                 output_file_name,

@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(ValueEnum, Clone, Debug)]
 pub enum ImageFormat {
+    None,
     Jpeg,
     Png,
 }
@@ -65,7 +66,7 @@ pub enum Commands {
     Memories {
         /// Converts image to the specified format
         #[arg(short, long)]
-        #[clap(value_enum, default_value_t=ImageFormat::Jpeg)]
+        #[clap(value_enum, default_value_t=ImageFormat::None)]
         image_format: ImageFormat,
 
         /// Groups images and videos, defines the filesystem structure inside the OUTPUT folder
@@ -88,7 +89,7 @@ pub enum Commands {
     Realmojis {
         /// Converts image to the specified format
         #[arg(short, long)]
-        #[clap(value_enum, default_value_t=ImageFormat::Jpeg)]
+        #[clap(value_enum, default_value_t=ImageFormat::None)]
         image_format: ImageFormat,
 
         /// Groups images and videos, defines the filesystem structure inside the OUTPUT folder
