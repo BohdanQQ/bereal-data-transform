@@ -1,41 +1,57 @@
-use crate::{args::ImageFormat, group, BerealBTSData};
+use crate::args::ImageFormat;
 use image::ImageReader;
 use std::{
     cmp::max,
     fmt::Display,
     fs::{self, canonicalize, File},
     io::{self, BufWriter, Write},
-    path::{absolute, Path, PathBuf},
+    path::{absolute, PathBuf},
     sync::{atomic::AtomicUsize, Arc},
     thread,
     time::Duration,
 };
 
-pub fn export_moments(
-    moment_output_spec: &Vec<group::OutputMomentSpec>,
-    input_folder: PathBuf,
-    output_folder: PathBuf,
-    format: ImageFormat,
+pub enum ExportJobSpec {
+    ImageConvert {
+        /// filename WITHOUT the extension
+        output_file_name: String,
+        /// image to convert
+        original_image_path: PathBuf,
+        output_format: ImageFormat,
+    },
+    Copy {
+        /// where to copy to, WITHOUT file extension (will be copied from the original)
+        output_file_name: String,
+        /// where to copy from
+        original_path: PathBuf,
+    },
+}
+
+/// # Arguments
+/// * `path_generator` - generates path where the entry will be stored - just the folder
+/// * `export_job_generator` - generates exports jobs that will execute withing the output folder supplied by the path_generator argument
+pub fn export_generic<T, PathGen, JobGen>(
+    moment_output_spec: &Vec<T>,
+    path_generator: PathGen,
+    export_job_generator: JobGen,
     verbose: bool,
-) -> usize {
+) -> usize
+where
+    PathGen: Fn(&T) -> PathBuf + Send + Sync,
+    JobGen: Fn(&T) -> Vec<ExportJobSpec> + Send + Sync,
+    T: Send + Sync,
+{
     let total = Arc::new(AtomicUsize::new(0));
     let done = Arc::new(AtomicUsize::new(0));
-    let image_extension = match format {
-        ImageFormat::Jpeg => "jpeg",
-        ImageFormat::Png => "png",
-    };
-    let lib_format = match format {
-        ImageFormat::Jpeg => image::ImageFormat::Jpeg,
-        ImageFormat::Png => image::ImageFormat::Png,
-    };
+
     if verbose {
         println!("Spawning filesystem structure");
     }
     for moment in moment_output_spec {
-        let folder = output_folder.join(moment.folder.clone());
+        let folder = path_generator(moment);
         if !folder.exists() {
             if let Err(e) = fs::create_dir_all(&folder) {
-                println!("Failed to create directories {}\nSkipping...", e);
+                println!("Failed to create directory {}\nSkipping...", e);
                 continue;
             }
         }
@@ -50,47 +66,59 @@ pub fn export_moments(
             chunk_size, thread_count
         );
     }
+    let path_generator = Arc::new(&path_generator);
+    let export_job_generator = Arc::new(&export_job_generator);
     thread::scope(|s| {
         for chunk in moment_output_spec.chunks(chunk_size) {
-            let output_folder = output_folder.clone();
-            let input_folder = input_folder.clone();
             let total = Arc::clone(&total);
             let done = Arc::clone(&done);
+            let path_generator = Arc::clone(&path_generator);
+            let export_job_generator = Arc::clone(&export_job_generator);
             s.spawn(move || {
                 for moment in chunk {
-                    let folder = output_folder.join(moment.folder.clone());
-                    if !folder.exists() {
-                        println!("Directory not found {}\nSkipping...", folder.display());
-                        continue;
-                    }
+                    let output_folder = path_generator(moment);
 
-                    let front_name =
-                        moment.file_name_prefix.clone() + "_camera_front." + image_extension;
-                    let res_front = convert_to(
-                        &input_folder.join(&moment.moment.front_camera_path),
-                        &folder.join(front_name),
-                        lib_format,
-                    );
-                    print_if_err(&res_front);
+                    for job in export_job_generator(moment) {
+                        match job {
+                            ExportJobSpec::ImageConvert {
+                                output_file_name,
+                                original_image_path,
+                                output_format,
+                            } => {
+                                let image_extension = match output_format {
+                                    ImageFormat::Jpeg => "jpeg",
+                                    ImageFormat::Png => "png",
+                                };
 
-                    let back_name =
-                        moment.file_name_prefix.clone() + "_camera_ back." + image_extension;
-                    let res_back = convert_to(
-                        &input_folder.join(&moment.moment.back_camera_path),
-                        &folder.join(back_name),
-                        lib_format,
-                    );
-                    print_if_err(&res_back);
-
-                    if let Some(BerealBTSData::Video { path }) = &moment.moment.behind_the_scenes {
-                        let bts_name = moment.file_name_prefix.clone() + "_BTS";
-                        let mb_ext = Path::new(path).extension().and_then(|s| s.to_str());
-                        if let Some(ext) = mb_ext {
-                            let res_bts = fs::copy(
-                                &input_folder.join(path),
-                                &folder.join(bts_name + "." + ext),
-                            );
-                            print_if_err(&res_bts);
+                                let lib_format = match output_format {
+                                    ImageFormat::Jpeg => image::ImageFormat::Jpeg,
+                                    ImageFormat::Png => image::ImageFormat::Png,
+                                };
+                                let res_front = convert_to(
+                                    &original_image_path,
+                                    &output_folder.join(output_file_name + "." + image_extension),
+                                    lib_format,
+                                );
+                                print_if_err(&res_front);
+                            }
+                            ExportJobSpec::Copy {
+                                output_file_name,
+                                original_path,
+                            } => {
+                                let mb_ext = original_path.extension().and_then(|s| s.to_str());
+                                if let Some(ext) = mb_ext {
+                                    let res_bts = fs::copy(
+                                        &original_path,
+                                        output_folder.join(output_file_name + "." + ext),
+                                    );
+                                    print_if_err(&res_bts);
+                                } else {
+                                    println!(
+                                        "Warning, no extension detected! {}",
+                                        original_path.to_string_lossy()
+                                    );
+                                }
+                            }
                         }
                     }
                     total.fetch_add(1, std::sync::atomic::Ordering::SeqCst);

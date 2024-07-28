@@ -1,4 +1,4 @@
-use crate::parser::EXPORTER_COUNT;
+use crate::parser::PARSER_COUNT;
 use chrono::{NaiveDate, NaiveDateTime, ParseResult};
 use clap::{Parser, Subcommand, ValueEnum};
 
@@ -9,7 +9,7 @@ pub enum ImageFormat {
 }
 
 #[derive(ValueEnum, Clone, Debug)]
-pub enum Grouping {
+pub enum MemoriesGrouping {
     /// only exported media, no subdirectories, total depth: 1
     None,
     /// subdirectories representing years, total depth: 2
@@ -20,6 +20,16 @@ pub enum Grouping {
     Day,
     /// subdirectories representing each calendar date identified by year, month and day, total depth: 2
     DayFlat,
+}
+
+#[derive(ValueEnum, Clone, Debug)]
+pub enum RealmojiGrouping {
+    /// only exported media, no subdirectories, total depth: 1
+    None,
+    /// create 2 groups images used in instant and non-instant realmojis, total depth: 2
+    Instant,
+    /// group by the unicode emoji character associated with a realmoji in the app, total depth: 2
+    Emoji,
 }
 
 #[derive(Parser, Debug)]
@@ -40,7 +50,7 @@ pub struct Args {
     #[arg(short, long)]
     pub output: String,
 
-    #[arg(short, long, default_value_t = 0, value_parser = clap::value_parser!(u64).range(0..EXPORTER_COUNT))]
+    #[arg(short, long, default_value_t = 0, value_parser = clap::value_parser!(u64).range(0..PARSER_COUNT))]
     /// Export structure version
     pub export_version: u64,
 
@@ -60,8 +70,8 @@ pub enum Commands {
 
         /// Groups images and videos, defines the filesystem structure inside the OUTPUT folder
         #[arg(short, long)]
-        #[clap(value_enum, default_value_t=Grouping::None)]
-        group: Grouping,
+        #[clap(value_enum, default_value_t=MemoriesGrouping::None)]
+        group: MemoriesGrouping,
 
         /// Caption regular expression filter
         #[arg(short, long)]
@@ -75,8 +85,16 @@ pub enum Commands {
     },
 
     /// Export RealMojis
-    RealMojis {
-        //TODO!
+    Realmojis {
+        /// Converts image to the specified format
+        #[arg(short, long)]
+        #[clap(value_enum, default_value_t=ImageFormat::Jpeg)]
+        image_format: ImageFormat,
+
+        /// Groups images and videos, defines the filesystem structure inside the OUTPUT folder
+        #[arg(short, long)]
+        #[clap(value_enum, default_value_t=RealmojiGrouping::None)]
+        group: RealmojiGrouping,
     },
 }
 

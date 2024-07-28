@@ -1,9 +1,19 @@
-use std::path::PathBuf;
+use std::{
+    collections::{HashMap, HashSet},
+    hash::Hash,
+    path::PathBuf,
+    vec,
+};
 
 use chrono::{Datelike, Timelike};
 use itertools::Itertools;
+use unic_ucd_name::Name;
 
-use crate::{args::Grouping, parser::BerealMomentRecord};
+use crate::{
+    args::{MemoriesGrouping, RealmojiGrouping},
+    parser::BerealMomentRecord,
+    BerealRealmojiRecord,
+};
 
 /// represents the paths where
 /// outputs will be saved, relative to the output directory
@@ -29,7 +39,7 @@ fn translate_bereal_moment_to_name_prefix(moment: &BerealMomentRecord) -> String
 
 pub fn group_moments(
     moments: &mut Vec<BerealMomentRecord>,
-    grouping: Grouping,
+    grouping: MemoriesGrouping,
 ) -> Result<Vec<OutputMomentSpec<'_>>, String> {
     let mut result = vec![];
 
@@ -44,7 +54,7 @@ pub fn group_moments(
     }
 
     match grouping {
-        Grouping::None => Ok(result),
+        MemoriesGrouping::None => Ok(result),
         // I could be done in a single for loop conditionally nesting if needed
         // however whenever i use the group from (key, group), I move out of it
         // and grouping in another level (year->month) becomes impossible
@@ -55,22 +65,22 @@ pub fn group_moments(
         // the way grouping works now is by appending a folder name after each group_* pass
         // in the Grouping::Day scnario, we first append year folder, then month folder
         // (creating month subfolders in year folders) and then day folders
-        Grouping::Year => {
+        MemoriesGrouping::Year => {
             group_year(&mut result);
             Ok(result)
         }
-        Grouping::Month => {
+        MemoriesGrouping::Month => {
             group_year(&mut result);
             group_month(&mut result);
             Ok(result)
         }
-        Grouping::Day => {
+        MemoriesGrouping::Day => {
             group_year(&mut result);
             group_month(&mut result);
             group_day(&mut result, false);
             Ok(result)
         }
-        Grouping::DayFlat => {
+        MemoriesGrouping::DayFlat => {
             group_day(&mut result, true);
             Ok(result)
         }
@@ -123,4 +133,101 @@ fn group_day(result: &mut [OutputMomentSpec<'_>], flat: bool) {
             }
         }
     }
+}
+
+/// represents the paths where
+/// outputs will be saved, relative to the output directory
+#[derive(Debug)]
+pub struct OutputRealmojiSpec {
+    pub folder: PathBuf,
+    pub file_name_prefix: String,
+    pub image_file: PathBuf,
+}
+
+pub fn group_realmojis(
+    mojis: &Vec<BerealRealmojiRecord>,
+    grouping: RealmojiGrouping,
+) -> Result<Vec<OutputRealmojiSpec>, String> {
+    Ok(match grouping {
+        RealmojiGrouping::None => extract_realmoji_images(mojis),
+        RealmojiGrouping::Instant => realmoji_group_by(
+            mojis,
+            |mj| mj.is_instant,
+            |key| {
+                if *key {
+                    "instant".to_owned()
+                } else {
+                    "non-instant".to_owned()
+                }
+            },
+        ),
+        RealmojiGrouping::Emoji => realmoji_group_by(
+            mojis,
+            |mj| mj.emoji.clone(),
+            |key| {
+                Name::of(key.chars().collect::<Vec<char>>()[0])
+                    .map(|v| v.to_string().to_lowercase().replace(' ', "-"))
+                    .unwrap_or("unknown-character".to_owned())
+            },
+        ),
+    })
+}
+
+fn extract_realmoji_images(mojis: &Vec<BerealRealmojiRecord>) -> Vec<OutputRealmojiSpec> {
+    let mut path_strings = HashSet::new();
+
+    let mut result = vec![];
+
+    for moji in mojis {
+        if !path_strings.insert(moji.image_path.to_string_lossy()) {
+            continue;
+        }
+
+        result.push(OutputRealmojiSpec {
+            file_name_prefix: format!("realmoji-{}", result.len()),
+            folder: PathBuf::new(),
+            image_file: moji.image_path.clone(),
+        })
+    }
+
+    result
+}
+
+fn realmoji_group_by<T, F, FolderFn>(
+    mojis: &Vec<BerealRealmojiRecord>,
+    key_extractor: F,
+    key_to_folder_name: FolderFn,
+) -> Vec<OutputRealmojiSpec>
+where
+    F: Fn(&BerealRealmojiRecord) -> T,
+    T: Hash,
+    T: std::cmp::Eq,
+    T: Clone,
+    FolderFn: Fn(&T) -> String,
+{
+    let mut moji_counter = 0;
+
+    let mut result = vec![];
+    let mut contains_set = HashMap::new();
+
+    for moji in mojis {
+        let key = key_extractor(moji);
+
+        if !contains_set.contains_key(&key) {
+            contains_set.insert(key.clone(), HashSet::new());
+        }
+        let target_set = contains_set.get_mut(&key).unwrap();
+
+        if !target_set.insert(moji.image_path.to_string_lossy()) {
+            continue;
+        }
+        result.push(OutputRealmojiSpec {
+            file_name_prefix: format!("realmoji-{}", moji_counter),
+            folder: PathBuf::new().join(key_to_folder_name(&key)),
+            image_file: moji.image_path.clone(),
+        });
+        moji_counter += 1;
+    }
+
+    result
 }
