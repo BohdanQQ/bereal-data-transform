@@ -4,7 +4,7 @@ mod filter;
 mod group;
 pub mod parser;
 
-use std::{path::PathBuf, sync::Arc, vec};
+use std::path::PathBuf;
 
 use args::Args;
 use clap::Parser;
@@ -20,8 +20,7 @@ fn main() {
 
 fn process(args: Args) -> Result<(), String> {
     let input_path = PathBuf::from(args.input);
-    let input_path = Arc::new(input_path);
-    let output_folder = Arc::new(PathBuf::from(&args.output));
+    let output_folder = PathBuf::from(&args.output);
     match args.command {
         args::Commands::Memories {
             image_format,
@@ -54,32 +53,13 @@ fn process(args: Args) -> Result<(), String> {
                 println!("Exporting");
             }
 
-            let image_format = Arc::new(image_format);
             let exported = export_generic(
-                &grouped_moments,
-                move |moment| output_folder.join(moment.folder.clone()),
-                move |x| {
-                    let mut result = vec![
-                        ExportJobSpec::ImageConvert {
-                            output_file_name: x.file_name_prefix.clone() + "_camera_front",
-                            original_image_path: input_path.join(&x.moment.front_camera_path),
-                            output_format: image_format.as_ref().clone(),
-                        },
-                        ExportJobSpec::ImageConvert {
-                            output_file_name: x.file_name_prefix.clone() + "_camera_back",
-                            original_image_path: input_path.join(&x.moment.back_camera_path),
-                            output_format: image_format.as_ref().clone(),
-                        },
-                    ];
-
-                    if let Some(BerealBTSData::Video { path }) = &x.moment.behind_the_scenes {
-                        result.push(ExportJobSpec::Copy {
-                            output_file_name: x.file_name_prefix.clone() + "_BTS",
-                            original_path: input_path.join(path),
-                        });
-                    }
-                    result
+                output_folder.clone(),
+                ExportParameters {
+                    input_path,
+                    image_format,
                 },
+                &grouped_moments,
                 args.verbose,
             );
 
@@ -99,17 +79,13 @@ fn process(args: Args) -> Result<(), String> {
 
             let mojis = group_realmojis(&mojis, group)?;
 
-            let image_format = Arc::new(image_format);
             let exported = export_generic(
-                &mojis,
-                move |moment| output_folder.join(moment.folder.clone()),
-                move |x| {
-                    vec![ExportJobSpec::ImageConvert {
-                        output_file_name: x.file_name_prefix.clone(),
-                        original_image_path: input_path.join(&x.image_file),
-                        output_format: image_format.as_ref().clone(),
-                    }]
+                output_folder.clone(),
+                ExportParameters {
+                    input_path,
+                    image_format,
                 },
+                &mojis,
                 args.verbose,
             );
 

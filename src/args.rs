@@ -6,6 +6,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 pub enum ImageFormat {
     None,
     Jpeg,
+    Jpg,
     Png,
 }
 
