@@ -11,29 +11,32 @@ as well as posts' caption text-based filtering (regex).
 
     cargo b
 
+    or for release build:
+
+    cargo b --release
+
 ## Run
 
 Only "working" subcommands are listed.
 As input folder, specify your unzipped BeReal dump.
 
-**Disclaimer**: some commands run parallel conversions of images, they **will** eat up all your CPU cores' performance 
-for a while!
+**Disclaimer**: some commands run parallel conversions of images, they **will** eat up all your CPU cores' performance for a while!
 
 ### Memories export
 
-    cargo r -- memories --help
+    cargo r --release -- memories --help
 
 Example:
 
-    cargo r -- --input ./my/input/data  --output ./out-mem memories --image-format jpeg --group day-flat
+    cargo r --release -- --input ./my/input/data  --output ./out-mem memories --image-format jpeg --group day-flat
 
 ### Realmojis export
 
-    cargo r -- realmojis --help
+    cargo r --release -- realmojis --help
 
 Example:
 
-    cargo r -- --input ./my/input/data  --output ./out-moji realmojis --group emoji
+    cargo r --release -- --input ./my/input/data  --output ./out-moji realmojis --group emoji
 
 Check out subcommands' respective `--help` messages for more information.
 
