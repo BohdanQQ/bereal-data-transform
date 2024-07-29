@@ -44,7 +44,7 @@ impl BerealMemoriesParser for ParserV0 {
             "Info: username = {}, timezone = {}",
             u_json.username, u_json.timezone,
         );
-        if let Ok(path) = absolute(self.relative_path(&u_json.profile_picture.path)) {
+        if let Ok(path) = absolute(self.relative_path(&("./".to_owned() + &u_json.profile_picture.path))) {
             println!("profile picture path: {}", path.to_string_lossy());
         }
 
