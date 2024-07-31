@@ -88,7 +88,7 @@ where
 {
     let read_res = super::read_file_into_string(input_path)?;
     let parsed: Vec<JsonParseType> =
-        serde_json::from_str(&read_res).map_err(|e| format!("Failed to parse realmojis: {}", e))?;
+        serde_json::from_str(&read_res).map_err(|e| format!("Failed to parse item: {}", e))?;
 
     let pre_result: Vec<Result<OutType, String>> = parsed.iter().map(|x| x.try_into()).collect();
     let mut result = vec![];
