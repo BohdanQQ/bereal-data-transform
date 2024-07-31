@@ -250,12 +250,12 @@ enum Media {
 }
 
 // the following types (up to the From<> impl) are helpers to work around
-// the missing "default" feature mentioned above 
+// the missing "default" feature mentioned above
 #[derive(Deserialize, Clone)]
 #[serde(untagged)] // serde tries to match each variant
 enum MaybeTaggedMedia {
-    Tagged(TaggedMedia),  // if tagged, parse it as a tagged media object
-    Untagged(MediaInfo),  // otherwise just parse the relevant MediaInfo
+    Tagged(TaggedMedia), // if tagged, parse it as a tagged media object
+    Untagged(MediaInfo), // otherwise just parse the relevant MediaInfo
 }
 
 #[derive(Deserialize, Clone)]
