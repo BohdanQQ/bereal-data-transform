@@ -64,7 +64,11 @@ fn process(args: Args) -> Result<(), String> {
             );
 
             if args.verbose {
-                println!("Fully exported {} out of {} moments", exported, grouped_moments.len());
+                println!(
+                    "Fully exported {} out of {} moments",
+                    exported,
+                    grouped_moments.len()
+                );
             }
 
             Ok(())
@@ -90,7 +94,11 @@ fn process(args: Args) -> Result<(), String> {
             );
 
             if args.verbose {
-              println!("Fully exported {} out of {} realmojis", exported, mojis.len());
+                println!(
+                    "Fully exported {} out of {} realmojis",
+                    exported,
+                    mojis.len()
+                );
             }
             Ok(())
         }

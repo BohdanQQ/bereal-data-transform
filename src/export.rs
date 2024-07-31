@@ -142,32 +142,27 @@ where
             s.spawn(move || {
                 for item in chunk {
                     let output_folder = item.get_output_folder(path_params.as_ref());
-                    let mut success = true; 
+                    let mut success = true;
                     for job in item.get_export_jobs(export_params.as_ref()) {
-                        success &=
-                        match job {
+                        success &= match job {
                             ExportJobSpec::ImageConvert {
                                 output_file_name,
                                 original_image_path,
                                 output_format,
-                            } => {
-                                export_image(
-                                    output_format,
-                                    original_image_path,
-                                    &output_folder,
-                                    output_file_name,
-                                )
-                            }
+                            } => export_image(
+                                output_format,
+                                original_image_path,
+                                &output_folder,
+                                output_file_name,
+                            ),
                             ExportJobSpec::Copy {
                                 output_file_name,
                                 original_path,
-                            } => {
-                                perform_copy(original_path, &output_folder, output_file_name)
-                            }
+                            } => perform_copy(original_path, &output_folder, output_file_name),
                         };
                     }
                     if success {
-                      total.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        total.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                     }
                 }
                 done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -201,15 +196,16 @@ where
     total.load(std::sync::atomic::Ordering::SeqCst)
 }
 
-fn perform_copy(original_path: PathBuf, output_folder: &Path, output_file_name_no_ext: String) -> bool {
+fn perform_copy(
+    original_path: PathBuf,
+    output_folder: &Path,
+    output_file_name_no_ext: String,
+) -> bool {
     let mb_ext = original_path.extension().and_then(|s| s.to_str());
     if let Some(ext) = mb_ext {
-      let target_path = &output_folder.join(output_file_name_no_ext + "." + ext);
-      let input_path = &original_path;
-        let res_bts = fs::copy(
-          input_path,
-          target_path
-        );
+        let target_path = &output_folder.join(output_file_name_no_ext + "." + ext);
+        let input_path = &original_path;
+        let res_bts = fs::copy(input_path, target_path);
         print_if_err(&res_bts, input_path, target_path)
     } else {
         println!(
@@ -242,17 +238,10 @@ fn export_image(
     let target_path = &output_folder.join(output_file_name_no_ext + "." + &image_extension);
     let input_path = &original_image_path;
     if let Some(lib_format) = lib_format {
-        let res_front = convert_to(
-            input_path,
-            target_path,
-            lib_format,
-        );
+        let res_front = convert_to(input_path, target_path, lib_format);
         print_if_err(&res_front, input_path, target_path)
     } else {
-        let res_bts = fs::copy(
-          input_path,
-          target_path,
-        );
+        let res_bts = fs::copy(input_path, target_path);
         print_if_err(&res_bts, input_path, target_path)
     }
 }
@@ -273,8 +262,12 @@ fn convert_to(
 /// returns false on error
 fn print_if_err<R, E: Display>(res: &Result<R, E>, from: &Path, to: &Path) -> bool {
     if let Err(e) = res {
-        println!("{} -> {} failed: {e}", from.to_string_lossy(), to.to_string_lossy());
-        return false
+        println!(
+            "{} -> {} failed: {e}",
+            from.to_string_lossy(),
+            to.to_string_lossy()
+        );
+        return false;
     }
     true
 }
