@@ -142,7 +142,9 @@ where
             s.spawn(move || {
                 for item in chunk {
                     let output_folder = item.get_output_folder(path_params.as_ref());
+                    let mut success = true; 
                     for job in item.get_export_jobs(export_params.as_ref()) {
+                        success &=
                         match job {
                             ExportJobSpec::ImageConvert {
                                 output_file_name,
@@ -154,17 +156,19 @@ where
                                     original_image_path,
                                     &output_folder,
                                     output_file_name,
-                                );
+                                )
                             }
                             ExportJobSpec::Copy {
                                 output_file_name,
                                 original_path,
                             } => {
-                                perform_copy(original_path, &output_folder, output_file_name);
+                                perform_copy(original_path, &output_folder, output_file_name)
                             }
-                        }
+                        };
                     }
-                    total.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    if success {
+                      total.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
                 }
                 done.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             });
@@ -197,19 +201,22 @@ where
     total.load(std::sync::atomic::Ordering::SeqCst)
 }
 
-fn perform_copy(original_path: PathBuf, output_folder: &Path, output_file_name_no_ext: String) {
+fn perform_copy(original_path: PathBuf, output_folder: &Path, output_file_name_no_ext: String) -> bool {
     let mb_ext = original_path.extension().and_then(|s| s.to_str());
     if let Some(ext) = mb_ext {
+      let target_path = &output_folder.join(output_file_name_no_ext + "." + ext);
+      let input_path = &original_path;
         let res_bts = fs::copy(
-            &original_path,
-            output_folder.join(output_file_name_no_ext + "." + ext),
+          input_path,
+          target_path
         );
-        print_if_err(&res_bts);
+        print_if_err(&res_bts, input_path, target_path)
     } else {
         println!(
             "Warning, no extension detected! {}",
             original_path.to_string_lossy()
         );
+        false
     }
 }
 
@@ -218,7 +225,7 @@ fn export_image(
     original_image_path: PathBuf,
     output_folder: &Path,
     output_file_name_no_ext: String,
-) {
+) -> bool {
     let (image_extension, lib_format) = match output_format {
         ImageFormat::Jpeg => ("jpeg".to_owned(), Some(image::ImageFormat::Jpeg)),
         ImageFormat::Jpg => ("jpg".to_owned(), Some(image::ImageFormat::Jpeg)),
@@ -232,19 +239,21 @@ fn export_image(
         ),
     };
 
+    let target_path = &output_folder.join(output_file_name_no_ext + "." + &image_extension);
+    let input_path = &original_image_path;
     if let Some(lib_format) = lib_format {
         let res_front = convert_to(
-            &original_image_path,
-            &output_folder.join(output_file_name_no_ext + "." + &image_extension),
+            input_path,
+            target_path,
             lib_format,
         );
-        print_if_err(&res_front);
+        print_if_err(&res_front, input_path, target_path)
     } else {
         let res_bts = fs::copy(
-            &original_image_path,
-            output_folder.join(output_file_name_no_ext + "." + &image_extension),
+          input_path,
+          target_path,
         );
-        print_if_err(&res_bts);
+        print_if_err(&res_bts, input_path, target_path)
     }
 }
 
@@ -261,8 +270,11 @@ fn convert_to(
     img.write_to(&mut target, format)
 }
 
-fn print_if_err<R, E: Display>(res: &Result<R, E>) {
+/// returns false on error
+fn print_if_err<R, E: Display>(res: &Result<R, E>, from: &Path, to: &Path) -> bool {
     if let Err(e) = res {
-        println!("{}", e);
+        println!("{} -> {} failed: {e}", from.to_string_lossy(), to.to_string_lossy());
+        return false
     }
+    true
 }
