@@ -261,7 +261,9 @@ enum MaybeTaggedMedia {
 #[derive(Deserialize, Clone)]
 #[serde(tag = "mediaType")]
 enum TaggedMedia {
+    #[serde(alias = "image")]
     Image(MediaInfo),
+    #[serde(alias = "video")]
     Video(MediaInfo),
 }
 
