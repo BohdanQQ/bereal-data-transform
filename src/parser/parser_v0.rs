@@ -44,7 +44,9 @@ impl BerealMemoriesParser for ParserV0 {
             "Info: username = {}, timezone = {}",
             u_json.username, u_json.timezone,
         );
-        if let Ok(path) = absolute(self.relative_path(&("./".to_owned() + &u_json.profile_picture.path))) {
+        if let Ok(path) =
+            absolute(self.relative_path(&("./".to_owned() + &u_json.profile_picture.path)))
+        {
             println!("profile picture path: {}", path.to_string_lossy());
         }
 
@@ -162,15 +164,6 @@ enum Music {
 }
 
 #[derive(Deserialize, Clone)]
-#[serde(tag = "mediaType")]
-enum Media {
-    #[serde(alias = "image")]
-    Image(MediaInfo),
-    #[serde(alias = "video")]
-    Video(MediaInfo),
-}
-
-#[derive(Deserialize, Clone)]
 struct MediaInfo {
     path: String,
 }
@@ -235,6 +228,54 @@ impl<'de> Deserialize<'de> for NaiveTimeWrap {
     }
 }
 
+// Adapted from https://github.com/serde-rs/serde/issues/1799#issuecomment-624978919
+
+// serde default serialization for internally tagged data when (only) the tag is missing
+// (but the data is otherwise valid)
+
+// this happens with older bereal pictures - the mediaType tag is missing, all of those are images
+// check https://github.com/serde-rs/serde/pull/2476 for status of this feature
+
+// regular workflow would be to copy the V0 parser, create a V1 parser which implements this scenario
+// but the data overlap is so huge I decided to opt for this workaround
+
+// https://serde.rs/container-attrs.html#from
+// very neat imo! (although somewhat long)
+// when working with the data down the line, this type is used
+#[derive(Deserialize, Clone)]
+#[serde(from = "MaybeTaggedMedia")]
+enum Media {
+    Image(MediaInfo),
+    Video(MediaInfo),
+}
+
+// the following types (up to the From<> impl) are helpers to work around
+// the missing "default" feature mentioned above 
+#[derive(Deserialize, Clone)]
+#[serde(untagged)] // serde tries to match each variant
+enum MaybeTaggedMedia {
+    Tagged(TaggedMedia),  // if tagged, parse it as a tagged media object
+    Untagged(MediaInfo),  // otherwise just parse the relevant MediaInfo
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(tag = "mediaType")]
+enum TaggedMedia {
+    Image(MediaInfo),
+    Video(MediaInfo),
+}
+
+impl From<MaybeTaggedMedia> for Media {
+    fn from(mb_tagged: MaybeTaggedMedia) -> Media {
+        match mb_tagged {
+            MaybeTaggedMedia::Tagged(TaggedMedia::Image(img)) | MaybeTaggedMedia::Untagged(img) => {
+                Media::Image(img)
+            }
+            MaybeTaggedMedia::Tagged(TaggedMedia::Video(vid)) => Media::Video(vid),
+        }
+    }
+}
+
 struct StartEndEraseRest;
 impl Replacer for StartEndEraseRest {
     fn replace_append(&mut self, caps: &Captures<'_>, dst: &mut String) {
@@ -292,10 +333,16 @@ impl TryInto<BerealMomentRecord> for &MemoryItemJson {
             late: self.late,
             song,
             behind_the_scenes: self.bts_media.as_ref().and_then(|bts| match bts {
-                Media::Image(_) => None,
+                Media::Image(v) => {
+                    println!(
+                        "BTS format is image, not video, this is unexpected, skipping. Path: {}",
+                        &v.path
+                    );
+                    None
+                }
                 Media::Video(v) => match bereal_path_sanitize_to_pathbuf(&v.path) {
                     Err(e) => {
-                        println!("Error pasing BTS path: {}", e);
+                        println!("Error pasing BTS path: {}, unsanitized: {}", e, &v.path);
                         None
                     }
                     Ok(p) => Some(BerealBTSData::Video { path: p }),
