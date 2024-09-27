@@ -1,9 +1,11 @@
+use itertools::Itertools;
+
 use crate::{args::TimeInterval, parser::BerealMomentRecord};
 
 pub fn filter_moments(
     moments: Vec<BerealMomentRecord>,
     caption_regex: Option<String>,
-    intervals_allowed: Option<Vec<TimeInterval>>,
+    intervals_allowed: Vec<TimeInterval>,
 ) -> Result<Vec<BerealMomentRecord>, String> {
     let mut result: Vec<BerealMomentRecord> = vec![];
     let mut regex = None;
@@ -16,32 +18,27 @@ pub fn filter_moments(
         regex = Some(re.unwrap());
     }
 
-    let filter_present = regex.is_some() || intervals_allowed.is_some();
-    if !filter_present {
+    let time_fillter_present = !intervals_allowed.is_empty();
+    if regex.is_none() && !time_fillter_present {
         return Ok(moments);
     }
 
     for photo in moments {
+        // "continue" in this loop means "photo did not pass filtering"
         if let Some(regex) = regex.as_ref() {
             if !regex.is_match(&photo.caption.to_lowercase()) {
                 continue;
             }
         }
 
-        if let Some(times) = intervals_allowed.as_ref() {
-            let mut matches_time = false;
-            for intvl in times {
-                if photo.naive_time_taken < intvl.from || photo.naive_time_taken > intvl.to {
-                    continue;
-                }
-                matches_time = true;
-                break;
-            }
+        let passed_one_or_zero = intervals_allowed
+            .iter()
+            .filter(|t| photo.naive_time_taken >= t.from && photo.naive_time_taken <= t.to)
+            .take(1)
+            .collect_vec()
+            .len();
 
-            if matches_time {
-                result.push(photo.clone());
-            }
-        } else {
+        if !time_fillter_present || passed_one_or_zero > 0 {
             result.push(photo.clone());
         }
     }

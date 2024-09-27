@@ -32,14 +32,14 @@ fn process(args: Args) -> Result<(), String> {
             parser.check_memories_files()?;
             // TODO: use this either in the image pasing phase or in the filtering phase
             // (timestamps are in UTC)
-            let tx = parser.get_timezone();
+            let _tz = parser.get_timezone();
 
             let data = parser.parse_memories()?;
             if args.verbose {
                 println!("Total parsed moments: {}", data.len());
             }
 
-            let mut data = filter_moments(data, caption, interval)?;
+            let mut data = filter_moments(data, caption, interval.unwrap_or(vec![]))?;
             let filtered = data.len();
             if args.verbose {
                 println!("Filtered moments: {}", filtered);
