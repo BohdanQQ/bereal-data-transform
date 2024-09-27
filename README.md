@@ -7,18 +7,9 @@ The utility also allows grouping and filtering of Memories (posts). Grouping
 creates subfolders for years, months or days. Time-based filtering is possible
 as well as posts' caption text-based filtering (regex).
 
-## Build
+## Running
 
-    cargo b
-
-    or for release build:
-
-    cargo b --release
-
-## Run
-
-Only "working" subcommands are listed.
-As input folder, specify your unzipped BeReal dump.
+As input folder, specify your *unzipped* BeReal dump.
 
 **Disclaimer**: some commands run parallel conversions of images, they **will** eat up all your CPU cores' performance for a while!
 
