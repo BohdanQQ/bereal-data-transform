@@ -21,6 +21,7 @@ fn main() {
 fn process(args: Args) -> Result<(), String> {
     let input_path = PathBuf::from(args.input);
     let output_folder = PathBuf::from(&args.output);
+    let para_coeff = args.parallelism as f32 / 100.0;
     match args.command {
         args::Commands::Memories {
             image_format,
@@ -61,6 +62,7 @@ fn process(args: Args) -> Result<(), String> {
                 },
                 &grouped_moments,
                 args.verbose,
+                para_coeff,
             );
 
             if args.verbose {
@@ -91,6 +93,7 @@ fn process(args: Args) -> Result<(), String> {
                 },
                 &mojis,
                 args.verbose,
+                para_coeff,
             );
 
             if args.verbose {

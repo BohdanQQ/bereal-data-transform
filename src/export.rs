@@ -90,16 +90,24 @@ impl ExportJobGenerator for OutputRealmojiSpec {
     }
 }
 
+fn calculate_chunk_size(paralelism_coeff: f32, work_items: usize) -> usize {
+    let fcpus = num_cpus::get() as f32;
+    let candidate_cpu_count = fcpus.min(paralelism_coeff * fcpus).floor() as usize;
+    let cpu_count = max(1, candidate_cpu_count);
+    (work_items + cpu_count - 1) / cpu_count
+}
+
 pub fn export_generic<T, PathParam, ExportParam>(
     path_params: PathParam,
     export_params: ExportParam,
     output_specs: &Vec<T>,
     verbose: bool,
+    paralelism_coeff: f32,
 ) -> usize
 where
-    T: Send + Sync + ExportJobGenerator<ParamExportsT = ExportParam, ParamFolderT = PathParam>,
-    PathParam: Send + Sync,
-    ExportParam: Send + Sync,
+    T: Sync + ExportJobGenerator<ParamExportsT = ExportParam, ParamFolderT = PathParam>,
+    PathParam: Sync,
+    ExportParam: Sync,
 {
     let total = AtomicUsize::new(0);
     let done = AtomicUsize::new(0);
@@ -117,8 +125,7 @@ where
         }
     }
 
-    let cpu_count = max(1, num_cpus::get());
-    let chunk_size = (output_specs.len() + cpu_count - 1) / cpu_count;
+    let chunk_size = calculate_chunk_size(paralelism_coeff, output_specs.len());
     let thread_count = output_specs.chunks(chunk_size).len();
     if verbose {
         println!(

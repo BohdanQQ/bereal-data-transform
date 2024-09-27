@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use crate::parser::PARSER_COUNT;
 use chrono::{NaiveDate, NaiveDateTime, ParseResult};
 use clap::{Parser, Subcommand, ValueEnum};
@@ -59,6 +61,10 @@ pub struct Args {
     /// Enable verbose output
     #[arg(short, long, default_value_t = false)]
     pub verbose: bool,
+
+    /// percentage to guide parallelization of the export phase - 0 - use 1 core, 100 - use all available cores
+    #[arg(short, long, default_value_t = 100, value_parser = port_in_range)]
+    pub parallelism: u8,
 }
 
 #[derive(Subcommand, Debug)]
@@ -150,6 +156,20 @@ fn parse_interval(arg: &str) -> Result<TimeInterval, String> {
         from: time_objs[0],
         to: time_objs[1],
     })
+}
+const PARA_RANGE: RangeInclusive<usize> = 0..=100;
+
+fn port_in_range(s: &str) -> Result<u8, String> {
+    let percent: usize = s.parse().map_err(|_| format!("`{s}` isn't number"))?;
+    if PARA_RANGE.contains(&percent) {
+        Ok(percent as u8)
+    } else {
+        Err(format!(
+            "parallelism percentage not in range {}-{}",
+            PARA_RANGE.start(),
+            PARA_RANGE.end()
+        ))
+    }
 }
 
 #[cfg(test)]
