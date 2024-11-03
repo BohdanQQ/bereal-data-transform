@@ -268,13 +268,15 @@ fn convert_to(
 
 /// returns false on error
 fn print_if_err<R, E: Display>(res: &Result<R, E>, from: &Path, to: &Path) -> bool {
-    if let Err(e) = res {
-        println!(
-            "{} -> {} failed: {e}",
-            from.to_string_lossy(),
-            to.to_string_lossy()
-        );
-        return false;
-    }
-    true
+    res.as_ref().map_or_else(
+        |e| {
+            println!(
+                "{} -> {} failed: {e}",
+                from.to_string_lossy(),
+                to.to_string_lossy()
+            );
+            false
+        },
+        |_| true,
+    )
 }

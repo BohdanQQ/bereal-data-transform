@@ -10,12 +10,9 @@ pub fn filter_moments(
     let mut result: Vec<BerealMomentRecord> = vec![];
     let mut regex = None;
     if let Some(rexp) = caption_regex {
-        let re = regex::Regex::new(&rexp.to_lowercase());
-        if let Err(e) = re {
-            return Err(format!("invalid regex: {}", e));
-        }
-
-        regex = Some(re.unwrap());
+        let re =
+            regex::Regex::new(&rexp.to_lowercase()).map_err(|e| format!("invalid regex: {}", e))?;
+        regex = Some(re);
     }
 
     let time_fillter_present = !intervals_allowed.is_empty();

@@ -11,8 +11,6 @@ as well as posts' caption text-based filtering (regex).
 
 As input folder, specify your *unzipped* BeReal dump.
 
-**Disclaimer**: some commands run parallel conversions of images, they **will** eat up all your CPU cores' performance for a while!
-
 ### Memories export
 
     cargo r --release -- memories --help

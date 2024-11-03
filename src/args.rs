@@ -63,7 +63,7 @@ pub struct Args {
     pub verbose: bool,
 
     /// percentage to guide parallelization of the export phase - 0 - use 1 core, 100 - use all available cores
-    #[arg(short, long, default_value_t = 100, value_parser = port_in_range)]
+    #[arg(short, long, default_value_t = 100, value_parser = para_in_range)]
     pub parallelism: u8,
 }
 
@@ -159,7 +159,7 @@ fn parse_interval(arg: &str) -> Result<TimeInterval, String> {
 }
 const PARA_RANGE: RangeInclusive<usize> = 0..=100;
 
-fn port_in_range(s: &str) -> Result<u8, String> {
+fn para_in_range(s: &str) -> Result<u8, String> {
     let percent: usize = s.parse().map_err(|_| format!("`{s}` isn't number"))?;
     if PARA_RANGE.contains(&percent) {
         Ok(percent as u8)
