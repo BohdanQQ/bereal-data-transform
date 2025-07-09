@@ -1,16 +1,21 @@
 # Bereal Data Transformer
 
-Exports data from a BeReal dump (obtained by contacting BeReal support) to other
-formats. Post images contain metadata (description and original creation time). 
-WIP features: realmoji metadata, BTS video metadata, ...
+Exports data from a BeReal dump (obtained by [contacting BeReal support](#requesting-your-data)) to other
+formats. The tool also inserts metadata to the exported post images (a.k.a. memories), e.g. description and original creation time.
 
 The utility also allows grouping and filtering of Memories (posts). Grouping
-creates subfolders for years, months or days. Time-based filtering is possible
+creates sub-folders for years, months or days. Time-based filtering is possible
 as well as posts' caption text-based filtering (regex).
+
+## (no-guarantee, non-exhaustive) WIP features
+* realmoji metadata (emoji, creation time)
+* BTS video metadata (creation time)
 
 ## Running
 
 As input folder, specify your *unzipped* BeReal dump.
+
+I use `cargo`. This will both build and run the program. In case you have a binary of this program at hand, replace `cargo r --release --` with the path to your binary.
 
 ### Memories export
 
@@ -37,8 +42,6 @@ use the `--no-meta` flag. The export should be successful.
 
 # Requesting your data
 
-For completeness, here is the support request that gets you a link to your data (credit a lost nickname of a Reddit person IIRC):
+For completeness, here is the support request that gets you a link to your data (remember to fill `<your username>`, credit a lost nickname of a Reddit person IIRC):
 
-```
-To Whom It May Concern: In accordance with Art. 15(3) GDPR, provide me with a copy of all personal data concerning me that you are processing, including any potential pseudonymised data on me as per Article 4(5) GDPR. Please make the personal data concerning me, which I have provided to you, available to me in a structured, commonly used and machine-readable format as laid down in Article 20(1) GDPR. I include the following information necessary to identify me: username: <your username>. Thanks, <your username>
-```
+        To Whom It May Concern: In accordance with Art. 15(3) GDPR, provide me with a copy of all personal data concerning me that you are processing, including any potential pseudonymised data on me as per Article 4(5) GDPR. Please make the personal data concerning me, which I have provided to you, available to me in a structured, commonly used and machine-readable format as laid down in Article 20(1) GDPR. I include the following information necessary to identify me: username: <your username>. Thanks, <your username>
