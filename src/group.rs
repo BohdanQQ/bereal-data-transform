@@ -142,6 +142,18 @@ pub struct OutputRealmojiSpec {
     pub folder: PathBuf,
     pub file_name_prefix: String,
     pub image_file: PathBuf,
+    // TODO: metadata propagation relies on correct extraction and parsin of te realmojis json file
+    // - it seems there are 2 json files realmojis.json being concatenated into one
+    //      - lets call them realmoji-post and realmoji-emoji json file
+    //     - realmoji-post file contains all "posts" of realmojis while realmoji-emoji file contains the "selection" history (of the 4-5 emoji variants)
+    //
+    // - realmojis here rely on the realmoji-post file because it contains all realmojis, even the "flash" ones
+    // - creation time of "flash" realmojis corresponds to their post time HOWEVER creation time of the other realmojis (in realmoji-emoji json file) have to be inferred from the realmoji-emoji file (post time does not correspond to creation time)
+    // hence to add metadata to the realmoji output, we need more sophisticated parsing
+    // TODO (above note, parsing realmoji creation time)
+    // simply parse realmoji-emoji file, create a map, query realmoji input paths
+    // -> mapped?     -> use creation time from map
+    // -> not mapped? -> flash realmoji => use post time as creation time
 }
 
 pub fn group_realmojis(

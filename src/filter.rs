@@ -22,9 +22,12 @@ pub fn filter_moments(
 
     for photo in moments {
         // "continue" in this loop means "photo did not pass filtering"
-        if let Some(regex) = regex.as_ref() {
-            if !regex.is_match(&photo.caption.to_lowercase()) {
-                continue;
+        // TODO: use 1.88 if let chains
+        if let Some(caption) = photo.caption.as_ref() {
+            if let Some(regex) = regex.as_ref() {
+                if !regex.is_match(&caption.to_lowercase()) {
+                    continue;
+                }
             }
         }
 

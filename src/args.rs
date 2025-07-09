@@ -1,3 +1,4 @@
+#![allow(unused_parens)] // required to silence a false positive in #[arg(long, default_value_t=("".to_string()))] - attempts to lcoalize this exception failed
 use std::ops::RangeInclusive;
 
 use crate::parser::PARSER_COUNT;
@@ -65,6 +66,10 @@ pub struct Args {
     /// percentage to guide parallelization of the export phase - 0 - use 1 core, 100 - use all available cores
     #[arg(short, long, default_value_t = 100, value_parser = para_in_range)]
     pub parallelism: u8,
+
+    /// disable metadata export for images
+    #[arg(long, default_value_t = false)]
+    pub no_meta: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -90,6 +95,14 @@ pub enum Commands {
         /// (example: 2024-02-10+2022-01-19T13:51:00,2021-08-19T20:11:32+2021-09-20T20:11:32 will search within 2 time intervals)
         #[arg(short = 't', long, value_parser = parse_interval_vec)]
         interval: Option<std::vec::Vec<TimeInterval>>,
+
+        /// EXIF metadata description prefix
+        #[arg(long, default_value_t=("".to_string()))]
+        desc_prefix: String,
+
+        /// EXIF metadata description suffix
+        #[arg(long, default_value_t=("".to_string()))]
+        desc_suffix: String,
     },
 
     /// Export RealMojis
@@ -103,6 +116,14 @@ pub enum Commands {
         #[arg(short, long)]
         #[clap(value_enum, default_value_t=RealmojiGrouping::None)]
         group: RealmojiGrouping,
+
+        /// EXIF metadata description prefix
+        #[arg(long, default_value_t=("".to_string()))]
+        desc_prefix: String,
+
+        /// EXIF metadata description suffix
+        #[arg(long, default_value_t=("".to_string()))]
+        desc_suffix: String,
     },
 }
 

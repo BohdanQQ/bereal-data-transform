@@ -11,7 +11,7 @@ pub struct BerealMomentRecord {
     pub front_camera_path: PathBuf,
     pub back_camera_path: PathBuf,
 
-    pub caption: String,
+    pub caption: Option<String>,
     pub naive_time_taken: chrono::NaiveDateTime,
 
     pub late: bool,

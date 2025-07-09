@@ -330,7 +330,7 @@ impl TryInto<BerealMomentRecord> for &MemoryItemJson {
         Ok(BerealMomentRecord {
             back_camera_path: back_path,
             front_camera_path: front_path,
-            caption: self.caption.as_ref().unwrap_or(&"".to_owned()).to_string(),
+            caption: self.caption.clone(),
             naive_time_taken: self.time_taken.time,
             late: self.late,
             song,

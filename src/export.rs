@@ -1,4 +1,5 @@
 use crate::{args::ImageFormat, BerealBTSData, OutputMomentSpec, OutputRealmojiSpec};
+use chrono::NaiveDateTime;
 use image::ImageReader;
 use std::{
     cmp::max,
@@ -11,6 +12,12 @@ use std::{
     time::Duration,
 };
 
+#[derive(Clone, Debug)]
+pub struct ImageMetadata {
+    caption: Option<String>,
+    time_taken: NaiveDateTime,
+}
+
 pub enum ExportJobSpec {
     ImageConvert {
         /// filename WITHOUT the extension
@@ -18,12 +25,15 @@ pub enum ExportJobSpec {
         /// image to convert
         original_image_path: PathBuf,
         output_format: ImageFormat,
+        metadata: Option<ImageMetadata>,
     },
     Copy {
         /// where to copy to, WITHOUT file extension (will be copied from the original)
         output_file_name: String,
         /// where to copy from
         original_path: PathBuf,
+        // TODO: curetnly only videos are copied, metadata is not needed here
+        // in any case, little_exif does not support mp4 anyway yet
     },
 }
 
@@ -38,6 +48,9 @@ pub trait ExportJobGenerator {
 pub struct ExportParameters {
     pub input_path: PathBuf,
     pub image_format: ImageFormat,
+    pub desc_prefix: String,
+    pub desc_suffix: String,
+    pub disable_metadata: bool,
 }
 
 impl<'a> ExportJobGenerator for OutputMomentSpec<'a> {
@@ -45,16 +58,36 @@ impl<'a> ExportJobGenerator for OutputMomentSpec<'a> {
     type ParamFolderT = PathBuf;
 
     fn get_export_jobs(&self, params: &ExportParameters) -> Vec<crate::ExportJobSpec> {
+        let metadata = ImageMetadata {
+            caption: self.moment.caption.as_ref().map(|v| {
+                // in the case the BerealMomentRecords are populated with empty strings in the export
+                if v.is_empty() {
+                    v.to_string()
+                } else {
+                    format!("{}{v}{}", params.desc_prefix, params.desc_suffix)
+                }
+            }),
+            time_taken: self.moment.naive_time_taken,
+        };
+
+        let meta = if params.disable_metadata {
+            None
+        } else {
+            metadata.into()
+        };
+
         let mut result = vec![
             crate::ExportJobSpec::ImageConvert {
                 output_file_name: self.file_name_prefix.clone() + "_camera_front",
                 original_image_path: params.input_path.join(&self.moment.front_camera_path),
                 output_format: params.image_format.clone(),
+                metadata: meta.clone(),
             },
             crate::ExportJobSpec::ImageConvert {
                 output_file_name: self.file_name_prefix.clone() + "_camera_back",
                 original_image_path: params.input_path.join(&self.moment.back_camera_path),
                 output_format: params.image_format.clone(),
+                metadata: meta,
             },
         ];
 
@@ -82,6 +115,7 @@ impl ExportJobGenerator for OutputRealmojiSpec {
             output_file_name: self.file_name_prefix.clone(),
             original_image_path: params.input_path.join(&self.image_file),
             output_format: params.image_format.clone(),
+            metadata: None,
         }]
     }
 
@@ -94,7 +128,7 @@ fn calculate_chunk_size(paralelism_coeff: f32, work_items: usize) -> usize {
     let fcpus = num_cpus::get() as f32;
     let candidate_cpu_count = fcpus.min(paralelism_coeff * fcpus).floor() as usize;
     let cpu_count = max(1, candidate_cpu_count);
-    (work_items + cpu_count - 1) / cpu_count
+    work_items.div_ceil(cpu_count)
 }
 
 pub fn export_generic<T, PathParam, ExportParam>(
@@ -156,11 +190,13 @@ where
                                 output_file_name,
                                 original_image_path,
                                 output_format,
+                                metadata,
                             } => export_image(
                                 output_format,
                                 original_image_path,
                                 &output_folder,
                                 output_file_name,
+                                metadata,
                             ),
                             ExportJobSpec::Copy {
                                 output_file_name,
@@ -228,6 +264,7 @@ fn export_image(
     original_image_path: PathBuf,
     output_folder: &Path,
     output_file_name_no_ext: String,
+    metadata: Option<ImageMetadata>,
 ) -> bool {
     let (image_extension, lib_format) = match output_format {
         ImageFormat::Jpeg => ("jpeg".to_owned(), Some(image::ImageFormat::Jpeg)),
@@ -244,13 +281,46 @@ fn export_image(
 
     let target_path = &output_folder.join(output_file_name_no_ext + "." + &image_extension);
     let input_path = &original_image_path;
-    if let Some(lib_format) = lib_format {
-        let res_front = convert_to(input_path, target_path, lib_format);
-        print_if_err(&res_front, input_path, target_path)
+    let res = if let Some(lib_format) = lib_format {
+        convert_to(input_path, target_path, lib_format).map_err(|e| e.to_string())
     } else {
-        let res_bts = fs::copy(input_path, target_path);
-        print_if_err(&res_bts, input_path, target_path)
+        fs::copy(input_path, target_path)
+            .map_err(|e| e.to_string())
+            .map(|_| ())
+    };
+
+    // this is utter crap, but im just adding the metadata export, not doing major refactors
+    // => TODO: use anyhow crate
+    print_if_err(&res, input_path, target_path)
+        && print_if_err(
+            &add_metadata(metadata, target_path),
+            input_path,
+            target_path,
+        )
+}
+
+fn add_metadata(desired_meta: Option<ImageMetadata>, path: &Path) -> Result<(), String> {
+    use little_exif::exif_tag::ExifTag;
+    use little_exif::metadata::Metadata;
+
+    if desired_meta.is_none() {
+        return Ok(());
     }
+    let meta = desired_meta.unwrap();
+
+    let mut metadata = Metadata::new();
+
+    if let Some(caption) = meta.caption {
+        if !caption.is_empty() {
+            metadata.set_tag(ExifTag::ImageDescription(caption));
+        }
+    }
+
+    let time_tag =
+        ExifTag::DateTimeOriginal(meta.time_taken.format("%Y-%m-%d %H:%M:%S").to_string());
+    metadata.set_tag(time_tag);
+
+    metadata.write_to_file(path).map_err(|e| e.to_string())
 }
 
 fn convert_to(

@@ -28,6 +28,8 @@ fn process(args: Args) -> Result<(), String> {
             group,
             caption,
             interval,
+            desc_prefix,
+            desc_suffix,
         } => {
             let parser = get_memories_parser(args.export_version, &input_path);
             parser.check_memories_files()?;
@@ -59,6 +61,9 @@ fn process(args: Args) -> Result<(), String> {
                 ExportParameters {
                     input_path,
                     image_format,
+                    desc_prefix,
+                    desc_suffix,
+                    disable_metadata: args.no_meta,
                 },
                 &grouped_moments,
                 args.verbose,
@@ -78,6 +83,8 @@ fn process(args: Args) -> Result<(), String> {
         args::Commands::Realmojis {
             group,
             image_format,
+            desc_prefix,
+            desc_suffix,
         } => {
             let parser = get_realmojis_parser(args.export_version, &input_path);
             parser.check_realmoji_files()?;
@@ -90,6 +97,9 @@ fn process(args: Args) -> Result<(), String> {
                 ExportParameters {
                     input_path,
                     image_format,
+                    desc_prefix,
+                    desc_suffix,
+                    disable_metadata: args.no_meta,
                 },
                 &mojis,
                 args.verbose,
