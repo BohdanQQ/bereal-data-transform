@@ -1,6 +1,7 @@
 use crate::{args::ImageFormat, BerealBTSData, OutputMomentSpec, OutputRealmojiSpec};
 use chrono::NaiveDateTime;
 use image::ImageReader;
+use img_parts::{Bytes, DynImage, ImageEXIF};
 use std::{
     cmp::max,
     fmt::Display,
@@ -320,7 +321,29 @@ fn add_metadata(desired_meta: Option<ImageMetadata>, path: &Path) -> Result<(), 
         ExifTag::DateTimeOriginal(meta.time_taken.format("%Y-%m-%d %H:%M:%S").to_string());
     metadata.set_tag(time_tag);
 
-    metadata.write_to_file(path).map_err(|e| e.to_string())
+    let img = fs::read(path).map_err(|e| e.to_string())?;
+    let img = DynImage::from_bytes(Bytes::from(img)).map_err(|e| e.to_string())?;
+    if img.is_none() {
+        return Err(format!("No image at {path:?}"));
+    }
+    let mut img = img.unwrap();
+
+    img.set_exif(
+        metadata
+            .encode()
+            .map_or_else(|_| None, |x| Some(Bytes::from(x))),
+    );
+    let written = img
+        .encoder()
+        .write_to(BufWriter::new(
+            File::create(path).map_err(|e| e.to_string())?,
+        ))
+        .map_err(|e| e.to_string())?;
+    if written == 0 {
+        Err(format!("metadata not written to {path:?}"))
+    } else {
+        Ok(())
+    }
 }
 
 fn convert_to(

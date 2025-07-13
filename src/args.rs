@@ -76,7 +76,7 @@ pub struct Args {
 pub enum Commands {
     /// Export BeReal Memories
     Memories {
-        /// Converts image to the specified format
+        /// Converts image to the specified format. Beware: conversion usually inflates the size (up to 10x and more!)
         #[arg(short, long)]
         #[clap(value_enum, default_value_t=ImageFormat::None)]
         image_format: ImageFormat,

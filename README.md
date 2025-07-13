@@ -37,7 +37,7 @@ Check out subcommands' respective `--help` messages for more information.
 
 ## Troubleshooting
 
-Due to the usage of a new and rapidly developing module for writing metadata into the exported files, you may experience crashes. If you're okay with having no metadata attached to the image,
+Due to the usage of a new and still-developing module for writing metadata into the exported files, you may experience crashes or [issues related to the export format and limitation of libraries](#a-few-notes-on-the-export-layout-and-webp-images). If you're okay with having no metadata attached to the image,
 use the `--no-meta` flag. The export should be successful.
 
 # Requesting your data
@@ -46,7 +46,7 @@ For completeness, here is the support request that gets you a link to your data 
 
         To Whom It May Concern: In accordance with Art. 15(3) GDPR, provide me with a copy of all personal data concerning me that you are processing, including any potential pseudonymised data on me as per Article 4(5) GDPR. Please make the personal data concerning me, which I have provided to you, available to me in a structured, commonly used and machine-readable format as laid down in Article 20(1) GDPR. I include the following information necessary to identify me: username: <your username>. Thanks, <your username>
 
-# A few notes on the export layout and WebP images
+# A few notes on the export layout and WebP images 
 
 ***disclaimer**: what follows are some quick, unpolished notes on various quirks of the bereal export, they can be incorrect, require redundant/too complex procedures otherwise possible with less effort, ... The approaches presented are quick and dirty one-off solutions and should be approached as such. Due to time constraints, I will not be polishing or handling these anomalies anytime soon in the tool itself, automatically.*
 
@@ -83,9 +83,11 @@ which will yield the entire `realmojis.json` file. The file however, will be a c
 Bereal dumps differ based on the age of your account. In (Dec 15) 2022, the `Photos/bereal` directory is no longer used to store memories/posts.
 
 Furthermore, the WebP image manipulation libraries we use are not mature enough to handle all
-variations of the WebP image format. (long story short: they compose but create broken images, particularly when trying to convert `VP8` webp images into `VP8X` ones). It is possible the libraries will improve but for now, the tool **requires** all `.webp` files to be in the extended file format (`VP8X` chunk).
+variations of the WebP image format. (long story short: they compose but cannot encode WebP in a reasonable size). It is possible the libraries will improve but for now, conversion to `webp` is left out. You can use [`cwebp`](https://developers.google.com/speed/webp/docs/cwebp) for efficient conversion for now.
 
-If you see metadata failures or broken images in the output of the tool when exporting **WebP**, you have to do the following - or similar (requires [`cwebp`](https://developers.google.com/speed/webp/docs/cwebp) and [`webmux`](https://developers.google.com/speed/webp/docs/webpmux)):
+You may also see errors regarding "missing" files in the output of this tool. Some exports are simply incomplete, no idea why. This can be related to the zipping shenanigans with the `realmoji.json` file, but so far I cannot tell for sure - no unzipping technique recovered those ghost files for me.
+
+**If you see metadata failures or broken images** in the output of the tool when exporting, you can try doing the following - or similar (requires [`cwebp`](https://developers.google.com/speed/webp/docs/cwebp) and [`webmux`](https://developers.google.com/speed/webp/docs/webpmux)):
 
 ### Old dumps with the `bereal` directory
 
@@ -109,8 +111,8 @@ The directory may contain a mix of `jpg` and `webp` images (if not, skip to step
     * replace occurences of `.jpg"` with `.jpg.webp"`
 4. run the tool, e.g. `cargo r --release -- -i ./input-dir -v -o  ./output-dir/  memories --desc-prefix "BeReal Memory: "`
 
-### (iOS?) dumps
+### (iOS?) dumps (no need to convert now)
 
 Furthermore, some dumps also contain non-extended (`VP8`) `.webp` images in the new `Photos/post` directory. As I have not inspected many exports, the only difference I saw in the exports I had was that it could be connected to an old (with `Photos/bereal` directory) account used on an iPhone.
 
-In the case such files (`VP8`) are present in the `post` directory, the above conversion (step `2`) must also be performed. (should be indicated in the error outputs of `bereal-data-transform`)
+In the case such files (`VP8`) are present in the `post` directory **and you get failures or broken images**, the above conversion (step `2`) can be performed to try to solve the issue.
