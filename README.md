@@ -52,7 +52,7 @@ For completeness, here is the support request that gets you a link to your data 
 
 ## `realmoji.json` file
 
-The file seems to be a fuse of two files of the same name. Some tools may only extract one of those. If `bereal-data-transform` reports anything containing `isInstant` as an error, your unzipping tool extracted the wrong (part of the) file.
+The archive contains 2 files named the same - `realmoji.json`. Some tools may only extract one of those. If `bereal-data-transform` reports anything containing `isInstant` as an error, your unzipping tool extracted the wrong (part of the) file.
 
 On linux you can do
 
