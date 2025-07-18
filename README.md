@@ -57,10 +57,10 @@ The file seems to be a fuse of two files of the same name. Some tools may only e
 On linux you can do
 
 ```bash
-unzip -p ./your-archive.zip realmojis.json > ./somewhere/realmojis.json
+unzip -B ./your-archive.zip realmojis.json
 ```
 
-which will yield the entire `realmojis.json` file. The file however, will be a concatenation of 2 JSON arrays (which in itself is not parsable by the JSON parser we use). **For now**, you are free to remove the first array (enclosed in `[` `]`, on multiple lines). You'll know you've done this correctly when you see the contents of the file starting thus (presence of `"isInstant"` field is crucial):
+which will create a `realmojis.json` and `realmojis.json~` file. **For now**, you will only need to keep one and name it `realmojis.json` (so either do nothing or swap the two files). The desired contents of the file look like this (the presence of `"isInstant"` field is crucial):
 
 ```json
 [
